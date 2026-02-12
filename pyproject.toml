@@ -1,0 +1,13 @@
+[project]
+name = "phper-site-tools"
+version = "0.1.0"
+description = "Tools for building the PHPER framework GitHub Pages site"
+requires-python = ">=3.10"
+license = {text = "MulanPSL-2.0"}
+dependencies = [
+    "markdown>=3.5",
+    "pygments>=2.15",
+]
+
+[project.scripts]
+convert-docs = "tools.convert_docs:main"

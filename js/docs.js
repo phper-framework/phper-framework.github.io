@@ -1,17 +1,70 @@
 // PHPER Docs — Documentation viewer with sidebar navigation
-// Reads DOCS_DATA from docs/docs-data.js and renders documentation pages
+// Supports versioned docs data: docs/{version}/docs-data.js
+// Falls back to docs/docs-data.js when no version is specified
 
-document.addEventListener('DOMContentLoaded', () => {
+/** Return the currently selected version from URL query param, or first in DOCS_VERSIONS. */
+function getVersion() {
+  const params = new URLSearchParams(window.location.search);
+  const v = params.get('version');
+  if (v) return v;
+  if (window.DOCS_VERSIONS && DOCS_VERSIONS.length > 0) return DOCS_VERSIONS[0];
+  return null;
+}
+
+/** Dynamically append a <script> and resolve when loaded. */
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = src;
+    s.onload = resolve;
+    s.onerror = reject;
+    document.head.appendChild(s);
+  });
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
   const sidebarNav = document.getElementById('sidebarNav');
   const docsContent = document.getElementById('docsContent');
   const sidebarToggle = document.getElementById('sidebarToggle');
   const sidebar = document.getElementById('docsSidebar');
   const overlay = document.getElementById('sidebarOverlay');
+  const versionSelect = document.getElementById('versionSelect');
+  const versionWrapper = document.getElementById('versionWrapper');
+
+  // ── Load versioned (or default) docs data ──────────────────────
+  const version = getVersion();
+  try {
+    if (version) {
+      await loadScript(`docs/${version}/docs-data.js`);
+    } else {
+      await loadScript('docs/docs-data.js');
+    }
+  } catch (_) {
+    // Try fallback
+    try { await loadScript('docs/docs-data.js'); } catch (e2) { /* ignore */ }
+  }
+
+  // ── Populate version selector ───────────────────────────────────
+  if (versionSelect && window.DOCS_VERSIONS && DOCS_VERSIONS.length > 0) {
+    versionWrapper.style.display = '';
+    DOCS_VERSIONS.forEach((v) => {
+      const opt = document.createElement('option');
+      opt.value = v;
+      opt.textContent = v;
+      if (v === version) opt.selected = true;
+      versionSelect.appendChild(opt);
+    });
+    versionSelect.addEventListener('change', () => {
+      const url = new URL(window.location.href);
+      url.searchParams.set('version', versionSelect.value);
+      window.location.href = url.toString();
+    });
+  }
 
   if (!window.DOCS_DATA || !DOCS_DATA.length) {
     docsContent.innerHTML =
       '<h1>Documentation</h1><p>No documentation data found. Run the conversion tool first:</p>' +
-      '<pre><code>python3 tools/convert-docs.py ../phper/phper-doc/doc</code></pre>';
+      '<pre><code>python3 tools/convert-docs.py --version 0.5.0 ../phper/phper-doc/doc</code></pre>';
     return;
   }
 
